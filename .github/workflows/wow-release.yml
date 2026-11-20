@@ -1,0 +1,26 @@
+name: WoW mouse patch - publish dmg
+
+on:
+  push:
+    branches: [wow-mouse]
+    paths: ['.github/workflows/wow-release.yml']
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RUN_ID: "44801474242"
+    steps:
+      - name: Download artifact and publish release
+        run: |
+          gh run download "$RUN_ID" -R "$GITHUB_REPOSITORY" -n rustdesk-unsigned-macos-aarch64 -D out
+          ls -la out
+          mv out/rustdesk-1.5.3-aarch64.dmg out/rustdesk-1.5.3-wow-aarch64.dmg
+          gh release create wow-1.5.3 out/rustdesk-1.5.3-wow-aarch64.dmg -R "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" --prerelease --title "RustDesk 1.5.3 + WoW mouse delta (macOS arm64, unsigned)" \
+            --notes "Unsigned build of branch wow-mouse. Absolute mouse moves also carry delta fields."

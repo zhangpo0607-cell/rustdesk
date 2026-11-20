@@ -3,6 +3,7 @@ name: WoW mouse patch - macOS arm64 build
 on:
   push:
     branches: [wow-mouse]
+    paths: ['libs/**', 'src/**', 'flutter/**', 'Cargo.toml', 'Cargo.lock']
   workflow_dispatch:
 
 env:
