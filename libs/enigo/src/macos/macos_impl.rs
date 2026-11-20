@@ -115,6 +115,10 @@ pub struct Enigo {
     ignore_flags: bool,
     flags: CGEventFlags,
     char_to_vkey_map: Map<String, Map<char, CGKeyCode>>,
+    /// Last absolute target received from the peer, used to synthesize
+    /// MOUSE_EVENT_DELTA_X/Y for absolute moves (games such as WoW read deltas
+    /// for camera rotation while the cursor is hidden/locked).
+    last_abs_pos: Option<(i32, i32)>,
 }
 
 impl Enigo {
@@ -195,6 +199,7 @@ impl Default for Enigo {
             ignore_flags: false,
             flags: CGEventFlags::CGEventFlagNull,
             char_to_vkey_map: Default::default(),
+            last_abs_pos: None,
         }
     }
 }
@@ -209,9 +214,20 @@ impl MouseControllable for Enigo {
     }
 
     fn mouse_move_to(&mut self, x: i32, y: i32) {
-        // For absolute movement, we don't set delta values
-        // This maintains backward compatibility
-        self.mouse_move_to_impl(x, y, None);
+        // Absolute move that ALSO carries delta fields, like a physical mouse.
+        // Delta is computed from the previous peer target (not the current
+        // cursor), because games that lock/warp the cursor (WoW right-drag
+        // camera) keep the real cursor fixed while the peer keeps moving.
+        let delta = match self.last_abs_pos {
+            Some((lx, ly)) => {
+                let (dx, dy) = (x - lx, y - ly);
+                // Ignore huge jumps (display switch / reconnect).
+                if dx.abs() > 500 || dy.abs() > 500 { (0, 0) } else { (dx, dy) }
+            }
+            None => (0, 0),
+        };
+        self.last_abs_pos = Some((x, y));
+        self.mouse_move_to_impl(x, y, Some(delta));
     }
 
     fn mouse_move_relative(&mut self, x: i32, y: i32) {
